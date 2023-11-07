@@ -23,24 +23,17 @@ shItr = 1
 tmpl = """\
 #!/bin/bash
 #!
-#! Name of the job:
-#SBATCH -J {name}
-#SBATCH --mail-type=END
-#SBATCH -m cyclic:fcyclic
-#SBATCH -N 1
-#SBATCH -n 8
-#SBATCH -p IACT
-#SBATCH --mail-user={mail}
-
-JOBID=$SLURM_JOB_ID
+#! Name of the job:q
+#$ -N {name}
+#$ -pe smp.pe 8
 
 echo -e "JobID: $JOBID\\n======"
 echo "Time: `date`"
 echo "Running on master node: `hostname`"
 echo "Current directory: `pwd`"
-echo -e "\\nExecuting command:\\n==================\\n{SBATCH_CMD}\\n"
+echo -e "\\nExecuting command:\\n==================\\n{SGE_CMD}\\n"
 
-eval {SBATCH_CMD}
+eval {SGE_CMD}
 """
 
 ##-----------------##
@@ -362,21 +355,27 @@ def create_sh(cmd,mailAc):
     cmdName = re.compile('\..*').sub('', os.path.basename(cmd.split(" ")[0]))
     fileName = dir + "/" + str(shItr) + "_" + cmdName + ".sh"
     with open(fileName, 'w') as shOUT:
-        shOUT.write(tmpl.format(name=cmdName, SBATCH_CMD=cmd, mail=mailAc))
+        shOUT.write(tmpl.format(name=cmdName, SGE_CMD=cmd, mail=mailAc))
     shItr += 1
+
+    print("create_sh: created submission script '%s'" %
+                     fileName)
+    with open(fileName, 'rt') as shOUT:
+        for line in shOUT:
+            print("> %s" % line.rstrip('\n'))
     return(fileName)
 
 def submit(cmdSH, dpdIDs=''):
     '''
     Submit the script for the current command.
-    dpdIDs should have format: 'afterok:<jobID1>:<jobID2>:etc.'
+    dpdIDs should have format: '<jobID1>,<jobID2>,etc.'
     '''
 
-    Sub = "sbatch" + \
-        " --dependency=" + dpdIDs + \
-        " --partition=IACT" + \
-        " -m cyclic:fcyclic" + \
-        " " + cmdSH
+    Sub = "qsub -terse"
+    if dpdIDs:
+        Sub += " -hold_jid=" + dpdIDs
+    Sub += " " + cmdSH
+    print("submit: created command '%s'" % cmdSH)
     #sys.stdout.write("\nSub command: " + str(shlex.split(Sub)) + "\n")
     try:
         prc = subprocess.Popen(
@@ -388,32 +387,58 @@ def submit(cmdSH, dpdIDs=''):
     except Exception as e:
         sys.exit("devscript_damMer.py aborted due to:\t" + type(e).__name__ + "\n")
 
-    jobID = str(prc.communicate()[0].decode("utf-8").split(" ")[3]).rstrip()
+    jobID = str(prc.communicate()[0].decode("utf-8")).rstrip()
     #sys.stdout.write("ID of current job: " + jobID + "\n")
+
+    print("submit: returned job ID '%s'" % jobID)
     return(jobID)
 
 def checkFin(jobIDs):
-    '''Check all provided jobIDs are no longer registered by slurm.'''
+    '''Check all provided jobIDs are no longer registered by sge.'''
 
     sys.stdout.write('\nWaiting for cluster.\n')
     rest = True
+    interval = 30
     while rest == True:
-        chk = subprocess.check_output(['squeue', '-h', '-o', '%i'])
-        chk = list(chk.decode("utf-8").strip().split())
+        print("checkFin: getting output from 'qstat'")
+        chk = subprocess.check_output(['qstat'])
+        qstat_list = []
+        for line in chk.decode("utf-8").split('\n'):
+            print("QSTAT> %s" % line.rstrip())
+            try:
+                if line.split()[0].isdigit():
+                    qstat_list.append(line.split()[0])
+                    print("...... extracted job ID '%s'" % line.split[0])
+            except IndexError:
+                pass
+        chk = qstat_list
+        print("checkFin: job list = %s" % chk)
         if not set(jobIDs).intersection(chk):
             rest = False
             break
         else:
-            time.sleep(1)
+            print("checkFin: wait for %ss..." % interval)
+            time.sleep(interval)
             continue
     sys.stdout.write('Job(s) finished.\n')
 
 def checkQue(jobIDs):
-    '''Check if jobs are registered by slurm.'''
+    '''Check if jobs are registered by sge.'''
 
     sys.stdout.write('\nWaiting for cluster.\n')
-    chk = subprocess.check_output(['squeue', '-h', '-o', '%i'])
-    chk = list(chk.decode("utf-8").strip().split())
+    print("checkQue: getting output from 'qstat'")
+    chk = subprocess.check_output(['qstat'])
+    qstat_list = []
+    for line in chk.decode("utf-8").split('\n'):
+        print("QSTAT> %s" % line.rstrip())
+        try:
+            if line.split()[0].isdigit():
+                qstat_list.append(line.split()[0])
+                print("...... extracted job ID '%s'" % line.split[0])
+        except IndexError:
+            pass
+    chk = qstat_list
+    print("checkQue: job list = %s" % chk)
     if set(jobIDs).issubset(chk):
         sys.stdout.write('Job(s) running.\n')
     else:
@@ -520,8 +545,7 @@ def main():
             jobIDs.append(crnID)
 
     #jobIDs = [str(elem) for elem in jobIDs]
-    cpJobs = 'afterok:' + (':').join(jobIDs)
-    cpJobs = re.sub('\n', '', cpJobs)
+    cpJobs = (',').join(jobIDs)
 
     ##Tester-----------------------------------------------------
     #
@@ -534,6 +558,7 @@ def main():
     ##---------------------------------------------------
     sys.stdout.write("\n>Check for presence of all '*.fastq.gz'-files\n")
     rest = True
+    interval = 10
     sys.stdout.write('\tWaiting for cluster.\n')
     while rest == True:
         cou = 0
@@ -546,7 +571,7 @@ def main():
                     rest = False
                     break
             else:
-                time.sleep(1)
+                time.sleep(interval)
                 break
     sys.stdout.write('\tAll files copied.\n')
 
@@ -580,7 +605,8 @@ def main():
 
     ##Ensure_all_jobs_are_running
     ##---------------------------
-    sys.stdout.write('\n>Check all jobs are registered by slurm\n')
+    time.sleep(10)
+    sys.stdout.write('\n>Check all jobs are registered by sge\n')
     checkQue(jobIDs)
 
 if __name__ == '__main__':
