@@ -25,7 +25,9 @@ tmpl = """\
 #!
 #! Name of the job:q
 #$ -N {name}
-#$ -pe smp.pe 8
+#$ -V
+#$ -pe smp.pe {cores}
+#$ -cwd
 
 echo -e "JobID: $JOBID\\n======"
 echo "Time: `date`"
@@ -348,14 +350,14 @@ def matcher(strings):
     sys.stdout.write("\tPrefix: " + match + "\n")
     return(match)
 
-def create_sh(cmd,mailAc):
+def create_sh(cmd,mailAc,cores=2):
     '''Create submission script for current command.'''
 
     global shItr
     cmdName = re.compile('\..*').sub('', os.path.basename(cmd.split(" ")[0]))
     fileName = dir + "/" + str(shItr) + "_" + cmdName + ".sh"
     with open(fileName, 'w') as shOUT:
-        shOUT.write(tmpl.format(name=cmdName, SGE_CMD=cmd, mail=mailAc))
+        shOUT.write(tmpl.format(name=cmdName, SGE_CMD=cmd, cores=cores, mail=mailAc))
     shItr += 1
 
     print("create_sh: created submission script '%s'" %
@@ -597,7 +599,7 @@ def main():
             " --bowtie2_path=" + os.path.dirname(bowuse) + "/" + \
             " --dam=" + cwd + dam[0] + \
             " " + cwd + exp[0]
-        dsqSH = create_sh(dsq,args.feedback)
+        dsqSH = create_sh(dsq,args.feedback,cores=8)
         #sys.stdout.write("\nList script:\t" + dsqSH + "\n")
 
         jobID = submit(dsqSH, dpdIDs=cpJobs)
