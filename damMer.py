@@ -69,7 +69,8 @@ def parse_args():
     parser.add_argument(
         "-f", "--feedback",
         type = str,
-        required = True,
+        required = False,
+        default="noemail",
         help = "Complete mail address to receive slurm feedback."
         )
     parser.add_argument(
