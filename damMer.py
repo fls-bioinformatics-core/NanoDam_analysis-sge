@@ -377,7 +377,7 @@ def submit(cmdSH, dpdIDs=''):
 
     Sub = "qsub -terse"
     if dpdIDs:
-        Sub += " -hold_jid=" + dpdIDs
+        Sub += " -hold_jid " + dpdIDs
     Sub += " " + cmdSH
     print("submit: created command '%s'" % Sub)
     #sys.stdout.write("\nSub command: " + str(shlex.split(Sub)) + "\n")
