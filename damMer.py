@@ -391,10 +391,14 @@ def submit(cmdSH, dpdIDs=''):
     except Exception as e:
         sys.exit("devscript_damMer.py aborted due to:\t" + type(e).__name__ + "\n")
 
+    submit_stderr = str(prc.communicate()[1].decode("utf-8"))
+    print("submit: stderr from qsub: %s" % submit_stderr)
     jobID = str(prc.communicate()[0].decode("utf-8")).rstrip()
     #sys.stdout.write("ID of current job: " + jobID + "\n")
 
     print("submit: returned job ID '%s'" % jobID)
+    if not jobID:
+        sys.exit("submit: failed to get job id\n")
     return(jobID)
 
 def checkFin(jobIDs):
@@ -549,7 +553,8 @@ def main():
             jobIDs.append(crnID)
 
     #jobIDs = [str(elem) for elem in jobIDs]
-    cpJobs = (',').join(jobIDs)
+    cpJobs = ','.join(jobIDs)
+    print("main: cpJobs = %r" % cpJobs)
 
     ##Tester-----------------------------------------------------
     #
