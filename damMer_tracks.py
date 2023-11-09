@@ -15,23 +15,19 @@ tmpl = """\
 #!/bin/bash
 #!
 #! Name of the job:
-#SBATCH -J {name}
-#SBATCH --mail-type=END
-#SBATCH -m cyclic:fcyclic
-#SBATCH -N 1
-#SBATCH -n 8
-#SBATCH -p IACT
-#SBATCH --mail-user={mail}
-
-JOBID=$SLURM_JOB_ID
+#$ -N sge-{name}
+#$ -V
+#$ -j y
+#$ -pe smp.pe {cores}
+#$ -cwd
 
 echo -e "JobID: $JOBID\\n======"
 echo "Time: `date`"
 echo "Running on master node: `hostname`"
 echo "Current directory: `pwd`"
-echo -e "\\nExecuting command:\\n==================\\n{SBATCH_CMD}\\n"
+echo -e "\\nExecuting command:\\n==================\\n{SGE_CMD}\\n"
 
-eval {SBATCH_CMD}
+eval {SGE_CMD}
 """
 
 ##-----------------##
@@ -58,7 +54,8 @@ def parse_args():
     parser.add_argument(
         "-f", "--feedback",
         type = str,
-        required = True,
+        required = False,
+        default="noemail",
         help = "Complete mail address to receive slurm feedback."
         )
     parser.add_argument(
@@ -212,7 +209,7 @@ def checkSl(dirLS, regex):
                             ]\
                 )
             if not all(value == True for value in fir.values()):
-                #time.sleep(1)
+                time.sleep(5)
                 continue
             else:
                 rist = False
@@ -220,27 +217,51 @@ def checkSl(dirLS, regex):
                 break
 
 def checkFin(jobIDs):
-    '''Check all provided jobIDs are no longer registered by slurm.'''
+    '''Check all provided jobIDs are no longer registered by sge.'''
 
     sys.stdout.write('\tWaiting for cluster.\n')
     rest = True
+    interval = 30
     while rest == True:
-        chk = subprocess.check_output(['squeue', '-h', '-o', '%i'])
-        chk = list(chk.decode("utf-8").strip().split())
+        print("checkFin: getting output from 'qstat'")
+        chk = subprocess.check_output(['qstat'])
+        qstat_list = []
+        for line in chk.decode("utf-8").split('\n'):
+            print("QSTAT> %s" % line.rstrip())
+            try:
+                if line.split()[0].isdigit():
+                    qstat_list.append(line.split()[0])
+                    print("...... extracted job ID '%s'" % line.split()[0])
+            except IndexError:
+                pass
+        chk = qstat_list
+        print("checkFin: job list = %s" % chk)
         if not set(jobIDs).intersection(chk):
             rest = False
             break
         else:
-            time.sleep(1)
+            print("checkFin: wait for %ss..." % interval)
+            time.sleep(interval)
             continue
     sys.stdout.write('\tJob(s) finished.\n')
 
 def checkQue(jobIDs):
-    '''Check if jobs are registered by slurm.'''
+    '''Check if jobs are registered by sge.'''
 
     sys.stdout.write('\tWaiting for cluster.\n')
-    chk = subprocess.check_output(['squeue', '-h', '-o', '%i'])
-    chk = list(chk.decode("utf-8").strip().split())
+    print("checkQue: getting output from 'qstat'")
+    chk = subprocess.check_output(['qstat'])
+    qstat_list = []
+    for line in chk.decode("utf-8").split('\n'):
+        print("QSTAT> %s" % line.rstrip())
+        try:
+            if line.split()[0].isdigit():
+                qstat_list.append(line.split()[0])
+                print("...... extracted job ID '%s'" % line.split()[0])
+        except IndexError:
+            pass
+    chk = qstat_list
+    print("checkQue: job list = %s" % chk)
     if set(jobIDs).issubset(chk):
         sys.stdout.write('\tJob(s) running.\n')
     else:
@@ -265,7 +286,7 @@ def createDir(ori,out,suf,files):
 
     return(dirName)
 
-def create_sh(cmd,mailAc):
+def create_sh(cmd,mailAc,cores=8):
     '''OBS! 'dir' as in 'damMer.py' changed to 'os.getcwd()'.'''
 
     global shItr
@@ -273,18 +294,24 @@ def create_sh(cmd,mailAc):
     #sys.stdout.write('\tcmdName:\t' + cmdName + "\n")
     fileName = os.getcwd() + "/" + str(shItr) + "_" + cmdName + ".sh"
     with open(fileName, 'w') as shOUT:
-        shOUT.write(tmpl.format(name=cmdName, SBATCH_CMD=cmd, mail=mailAc))
+        shOUT.write(tmpl.format(name=cmdName, SGE_CMD=cmd, cores=cores, mail=mailAc))
     shItr += 1
+
+    print("create_sh: created submission script '%s'" %
+                     fileName)
+    with open(fileName, 'rt') as shOUT:
+        for line in shOUT:
+            print("> %s" % line.rstrip('\n'))
     return(fileName)
 
 def submit(cmdSH, dpdIDs=''):
-    '''dpdIDs should have format: 'afterok:<jobID1>:<jobID2>:etc.' '''
+    '''dpdIDs should have format: '<jobID1>,<jobID2>,etc.' '''
 
-    Sub = "sbatch" + \
-        " --dependency=" + dpdIDs + \
-        " --partition=IACT" + \
-        " -m cyclic:fcyclic" + \
-        " " + cmdSH
+    Sub = "qsub -terse"
+    if dpdIDs:
+        Sub += " -hold_jid=" + dpdIDs
+    Sub += " " + cmdSH
+    print("submit: created command '%s'" % cmdSH)
     #sys.stdout.write("\tSubmit:\t" + str(Sub) + "\n")
     try:
         prc = subprocess.Popen(
@@ -299,6 +326,7 @@ def submit(cmdSH, dpdIDs=''):
     jobID = str(prc.communicate()[0].decode("utf-8").split(" ")[3]).rstrip()
     #sys.stdout.write("\tjobID:\t" + jobID + "\n")
 
+    print("submit: returned job ID '%s'" % jobID)
     return(jobID)
 
 def readlines_reverse(filename):
@@ -320,7 +348,7 @@ def readlines_reverse(filename):
         yield line[::-1]
 
 def screener(f):
-    '''Check for 'All done.' in all 'slurm-*'-files.'''
+    '''Check for 'All done.' in all 'sge-*'-files.'''
 
     i = 0
     for qline in readlines_reverse(f):
@@ -364,15 +392,15 @@ def extractor(path):
 def renamer(curDIR, ctrlpre, exppre):
     '''Rename output files of damidseq_pipeline_vR.1.'''
 
-    ##Identify_slurm-file
+    ##Identify_sge-file
     ##-------------------
     sl = [
         f for f in os.listdir() \
-        if re.compile('^slurm-.*\.out', re.IGNORECASE).search(f)
+        if re.compile('^sge-.*\.o.*', re.IGNORECASE).search(f)
         ][0]
-    #sys.stdout.write('\tslurm file:\t' + sl + '\n')
+    sys.stdout.write('\tsge file:\t' + sl + '\n')
 
-    ##Extract_info_from_slurm-file
+    ##Extract_info_from_sge-file
     ##----------------------------
     fs, dam = extractor(os.path.join(curDIR,sl))
     # for k,v in fs.items():
@@ -446,7 +474,7 @@ def renamer(curDIR, ctrlpre, exppre):
         nbGF
         )
 
-    ##Rename_slurm-_&_pipeline-file
+    ##Rename_sge-_&_pipeline-file
     ##-----------------------------
     date = time.strftime("%Y%m%d", time.localtime())
     os.rename(
@@ -597,20 +625,20 @@ def main():
     macuse = checkt(args.macs2)
     bwuse = checkt(args.bgToBw)
 
-    ##Check_presence_of_'slurm-.*\.out'-files
+    ##Check_presence_of_'sge-.*\.o.*'-files
     ##---------------------------------------
     ##Note:Alternative_is_to_check_for_bedgraph-file_presence
-    ##Note:Alternative_is_to_search_for_slurm-file_by_jobIDs
-    sys.stdout.write("\n>Checking presence of 'slurm-.*\.out'-files\n")
-    checkSl(args.repos, '^slurm-.*\.out')
+    ##Note:Alternative_is_to_search_for_sge-file_by_jobIDs
+    sys.stdout.write("\n>Checking presence of 'sge-.*\.o.*'-files\n")
+    checkSl(args.repos, '^sge-.*\.o.*')
 
-    ##Check_end_of_job_via_'slurm-*'-files
+    ##Check_end_of_job_via_'sge-*'-files
     ##------------------------------------
     ##Note:alternative_is_to_check_for_last_coord_bedgraph-file/length
-    sys.stdout.write("\n>Check complete 'slurm-.*\.out'-files\n")
+    sys.stdout.write("\n>Check complete 'sge-.*\.o.*'-files\n")
     nov = dict()
     for fIN in args.repos:
-        sl = [f for f in os.listdir(fIN) if re.compile('^slurm-.*\.out').search(f)][0]
+        sl = [f for f in os.listdir(fIN) if re.compile('^sge-.*\.o.*').search(f)][0]
         nov[os.path.join(fIN,sl)] = False
 
     sys.stdout.write('\tWaiting for jobs finishing.\n')
@@ -619,7 +647,7 @@ def main():
         for el in [k for k,v in nov.items() if v == False]:
             nov[el] = screener(el)
             if not all(value == True for value in nov.values()):
-                #time.sleep(1)
+                time.sleep(5)
                 continue
             else:
                 rast = False
