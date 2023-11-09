@@ -23,9 +23,10 @@ shItr = 1
 tmpl = """\
 #!/bin/bash
 #!
-#! Name of the job:q
-#$ -N {name}
+#! Name of the job:
+#$ -N sge-{name}
 #$ -V
+#$ -j y
 #$ -pe smp.pe {cores}
 #$ -cwd
 
