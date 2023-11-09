@@ -73,7 +73,7 @@ def checkSl(dirLS, regex):
                             ]\
                 )
             if not all(value == True for value in fir.values()):
-                #time.sleep(1)
+                time.sleep(5)
                 continue
             else:
                 rist = False
@@ -100,19 +100,19 @@ def createDir(ori,out,suf,files):
     return(dirName)
 
 def renamer(curDIR):
-    '''Rename macs2-derived slurm files.'''
+    '''Rename macs2-derived sge files.'''
 
-    ##Identify_slurm-file
+    ##Identify_sge-file
     ##-------------------
     try:
         sls = [ \
             f for f in os.listdir() \
-            if re.compile('^slurm-.*\.out').search(f) \
+            if re.compile('^sge-.*\.o.*').search(f) \
             ]
     except IndexError:
-        sys.stdout.write("\t'slurm-*.out'-file already renamed.\n")
+        sys.stdout.write("\t'sge-*.o*'-file already renamed.\n")
 
-    ##Rename_slurm-file
+    ##Rename_sge-file
     ##-----------------
     date = time.strftime("%Y%m%d", time.localtime())
     for sl in sls:
