@@ -434,6 +434,7 @@ def checkQue(jobIDs):
     '''Check if jobs are registered by sge.'''
 
     sys.stdout.write('\nWaiting for cluster.\n')
+    print("checkQue: waiting for jobs: %s" % jobIDs)
     print("checkQue: getting output from 'qstat'")
     chk = subprocess.check_output(['qstat'])
     qstat_list = []
