@@ -592,7 +592,8 @@ def main():
         #sys.stdout.write('exp: '+str(exp)+'\n')
 
         ##'damid'_command
-        dsq = damuse + \
+        dsq = "perl " + \
+            damuse + \
             " --bins=300" + \
             " --gatc_frag_file=" + args.gatcfrag + \
             " --bowtie2_genome_dir=" + args.index + \
