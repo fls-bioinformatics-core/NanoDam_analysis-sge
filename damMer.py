@@ -412,7 +412,7 @@ def checkFin(jobIDs):
             try:
                 if line.split()[0].isdigit():
                     qstat_list.append(line.split()[0])
-                    print("...... extracted job ID '%s'" % line.split[0])
+                    print("...... extracted job ID '%s'" % line.split()[0])
             except IndexError:
                 pass
         chk = qstat_list
@@ -438,7 +438,7 @@ def checkQue(jobIDs):
         try:
             if line.split()[0].isdigit():
                 qstat_list.append(line.split()[0])
-                print("...... extracted job ID '%s'" % line.split[0])
+                print("...... extracted job ID '%s'" % line.split()[0])
         except IndexError:
             pass
     chk = qstat_list
