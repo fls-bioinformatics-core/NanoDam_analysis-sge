@@ -379,7 +379,7 @@ def submit(cmdSH, dpdIDs=''):
     if dpdIDs:
         Sub += " -hold_jid=" + dpdIDs
     Sub += " " + cmdSH
-    print("submit: created command '%s'" % cmdSH)
+    print("submit: created command '%s'" % Sub)
     #sys.stdout.write("\nSub command: " + str(shlex.split(Sub)) + "\n")
     try:
         prc = subprocess.Popen(
