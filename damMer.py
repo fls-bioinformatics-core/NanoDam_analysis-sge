@@ -39,6 +39,10 @@ echo -e "\\nExecuting command:\\n==================\\n{SGE_CMD}\\n"
 eval {SGE_CMD}
 """
 
+# Get location of NanoDam_analysis directory
+nanodamdir = os.path.normpath(
+    os.path.dirname(os.path.dirname(__file__)))
+
 ##-----------------##
 ##----Arguments----##
 ##-----------------##
@@ -101,7 +105,8 @@ def parse_args():
     parser.add_argument(
         "-q", "--damidseq",
         type = str,
-        default = "./damidseq_pipeline_vR.1.pl",
+        default = os.path.join(nanodamdir,
+                               "damidseq_pipeline_vR.1.pl"),
         help = "Path to damidseq_pipeline executable."
         )
 
