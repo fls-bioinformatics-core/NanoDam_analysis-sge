@@ -504,7 +504,12 @@ def main():
     sys.stdout.write('\n>Checking executables\n')
     bowuse = checkt(args.bow2dir)
     samuse = checkt(args.samdir)
-    damuse = checkt(args.damidseq)
+    #damuse = checkt(args.damidseq)
+    sys.stdout.write('\n>Checking damidseq Perl script\n')
+    damuse = os.path.join(nanodamdir,"damidseq_pipeline_vR.1.pl")
+    print("Path to Perl script: %s" % damuse)
+    if not os.path.exists(damuse):
+        sys.exit("Couldn't find Perl script\n")
     sys.stdout.write('\n>Checking indices\n')
     checki(args.index)
 
