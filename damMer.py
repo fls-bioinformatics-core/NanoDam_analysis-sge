@@ -463,6 +463,7 @@ def checkQue(jobIDs):
 ##---------------------##
 
 def main():
+    print("main: command line: %s" % sys.argv)
     args = parse_args()
 
     ##Set_global_variable_'dir'
