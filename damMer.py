@@ -40,8 +40,7 @@ eval {SGE_CMD}
 """
 
 # Get location of NanoDam_analysis directory
-nanodamdir = os.path.normpath(
-    os.path.dirname(os.path.dirname(__file__)))
+nanodamdir = os.path.abspath(os.path.dirname(__file__))
 
 ##-----------------##
 ##----Arguments----##
