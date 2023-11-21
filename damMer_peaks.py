@@ -50,7 +50,7 @@ def parse_args():
 ##----Functions----##
 ##-----------------##
 
-def checkSl(dirLS, regex):
+def checkSl(dirLS, regex, verbose=False):
     '''
     Check presence of files with regex
     containting names in parsed set of dirs.
@@ -66,9 +66,10 @@ def checkSl(dirLS, regex):
     rist = True
     while rist == True:
         for slIN in [k for k,v in fir.items() if v == False]:
-            print("checkSl: looking in %s:" % slIN)
-            for f in os.listdir(slIN):
-                print("checkSl: -- %s" % f)
+            if verbose:
+                print("checkSl: looking in %s:" % slIN)
+                for f in os.listdir(slIN):
+                    print("checkSl: -- %s" % f)
             fir[slIN] = any(
                 r == True \
                     for r in [True\
@@ -376,7 +377,7 @@ def main():
     sys.stdout.write("\n>Checking presence of '*.broadPeak'-files\n")
     checkSl(args.repos, '^(?=(.*-vs-)).*\.broadPeak$')
     sys.stdout.write("\n>Checking presence of DamOnly-'*.broadPeak'-files\n")
-    checkSl(args.repos, '^(?!(.*-vs-)).*\.broadPeak$')
+    checkSl(args.repos, '^(?!(.*-vs-)).*\.broadPeak$', verbose=True)
 
     ##Rename_slurm_files
     ##------------------
