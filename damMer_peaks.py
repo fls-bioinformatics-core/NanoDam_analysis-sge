@@ -56,14 +56,19 @@ def checkSl(dirLS, regex):
     containting names in parsed set of dirs.
     '''
 
+    # Create a dictionary where keys are the
+    # input directory paths
     fir = dict()
     for fIN in dirLS:
         fir[fIN] = False
 
-    sys.stdout.write('\tWaiting for cluster.\n')
+    sys.stdout.write('\tChecking for files.\n')
     rist = True
     while rist == True:
         for slIN in [k for k,v in fir.items() if v == False]:
+            print("checkSl: looking in %s:" % slIN)
+            for f in os.listdir(slIN):
+                print("checkSl: -- %s" % f)
             fir[slIN] = any(
                 r == True \
                     for r in [True\
