@@ -324,10 +324,13 @@ def submit(cmdSH, dpdIDs=''):
     except Exception as e:
         sys.exit("\nERROR: 'devscript_damMer.py' aborted:\t" + type(e).__name__ + "\n")
 
-    jobID = str(prc.communicate()[0].decode("utf-8").split(" ")[3]).rstrip()
-    #sys.stdout.write("\tjobID:\t" + jobID + "\n")
+    submit_stderr = str(prc.communicate()[1].decode("utf-8"))
+    print("submit: stderr from qsub: %s" % submit_stderr)
+    jobID = str(prc.communicate()[0].decode("utf-8")).rstrip()
 
     print("submit: returned job ID '%s'" % jobID)
+    if not jobID:
+        sys.exit("submit: failed to get job id\n")
     return(jobID)
 
 def readlines_reverse(filename):
